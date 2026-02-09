@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# env
+.env
+.env.* 
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# build
+dist/
+build/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# DB (使ってるなら)
+*.sqlite
+*.db
