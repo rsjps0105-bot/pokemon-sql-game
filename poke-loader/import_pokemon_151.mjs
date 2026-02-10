@@ -1,8 +1,14 @@
 import mysql from "mysql2/promise";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 const API = "https://pokeapi.co/api/v2";
-
-require("dotenv").config();
 
 const DB = {
   host: process.env.DB_HOST || "localhost",
@@ -11,8 +17,6 @@ const DB = {
   database: process.env.DB_NAME || "poke_sql_game",
   charset: process.env.DB_CHARSET || "utf8mb4",
 };
-
-module.exports = DB;
 
 async function fetchJson(url) {
   const res = await fetch(url);
