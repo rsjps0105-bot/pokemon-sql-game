@@ -1,6 +1,7 @@
 ﻿const express = require("express");
 const app = express();
 const { pool } = require("./db");
+const { isSameByMode } = require("./judge");
 
 app.use(express.json());
 
@@ -37,33 +38,19 @@ function validateUserSql(sql) {
   return { ok: true };
 }
 
-function normalizeRows(rows) {
-  return (rows ?? []).map(r => JSON.stringify(r)).sort();
-}
 
-function isSameResult(userRows, answerRows) {
-  const a = normalizeRows(userRows);
-  const b = normalizeRows(answerRows);
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
-
-// まずは「問題1」をコードに直書き（後で challenges テーブルに移せばOK）
-const CHALLENGES = {
-  1: {
-    title: "トキワの森：でんきショックを覚えるポケモン",
-    answerSql:
-      "SELECT p.name_ja " +
-      "FROM encounter e " +
-      "JOIN pokemon p ON p.id = e.pokemon_id " +
-      "JOIN learn l ON l.pokemon_id = p.id " +
-      "JOIN move m ON m.id = l.move_id " +
-      "WHERE e.location_id = 1 AND m.name = 'でんきショック' " +
-      "ORDER BY p.name_ja"
+app.get("/api/challenges", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, level, title, description, judge_mode FROM challenges WHERE is_active = 1 ORDER BY level, id"
+    );
+    res.json({ ok: true, challenges: rows });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: "取得エラー", error: String(err.message ?? err) });
   }
-};
+});
 
+// SQL提出＆判定API
 app.post("/api/submit", async (req, res) => {
   const { challengeId, sql } = req.body ?? {};
 
@@ -74,35 +61,168 @@ app.post("/api/submit", async (req, res) => {
   const v = validateUserSql(sql);
   if (!v.ok) return res.status(400).json({ ok: false, message: v.reason });
 
-  const ch = CHALLENGES[challengeId];
-  if (!ch) return res.status(404).json({ ok: false, message: "問題が見つかりません" });
-
   try {
+    // ★問題をDBから取得（answer_sqlはAPIで返さない/ここでだけ使う）
+    const [chs] = await pool.query(
+      "SELECT id, title, answer_sql, judge_mode, location_id FROM challenges WHERE id = ? AND is_active = 1",
+      [challengeId]
+    );
+
+    if (chs.length === 0) {
+      return res.status(404).json({ ok: false, message: "問題が見つかりません" });
+    }
+
+    const ch = chs[0];
+
     // LIMITが無ければ強制（重いクエリ対策）
     const userSql = /limit\s+\d+/i.test(sql) ? sql : `${sql} LIMIT 200`;
 
-    console.log("=== SUBMIT DEBUG ===");
-    console.log("RAW SQL:", JSON.stringify(sql));
-    console.log("EXEC SQL:", JSON.stringify(userSql));
-    const [dbName] = await pool.query("SELECT DATABASE() AS db");
-    console.log("DB:", dbName[0].db);
-
     const [userRows] = await pool.query(userSql);
-    const [answerRows] = await pool.query(ch.answerSql);
+    const [answerRows] = await pool.query(ch.answer_sql);
 
-    const correct = isSameResult(userRows, answerRows);
+    const correct = isSameByMode(userRows, answerRows, ch.judge_mode);
+
+    let stageClearCount = 0;
+    let requiredClearCount = 0;
+    let stageCleared = false;
+
+    if (correct) {
+      const userId = 1;
+
+      // クリア記録（重複は無視）
+      await pool.query(
+        "INSERT IGNORE INTO challenge_clears (user_id, challenge_id) VALUES (?, ?)",
+        [userId, challengeId]
+      );
+
+      // このステージで何問クリアしたか
+      const [rows] = await pool.query(
+        `SELECT COUNT(*) AS cnt
+     FROM challenge_clears cc
+     JOIN challenges c ON c.id = cc.challenge_id
+     WHERE cc.user_id = ?
+       AND c.location_id = ?`,
+        [userId, ch.location_id]
+      );
+
+      stageClearCount = rows[0].cnt;
+
+      // このステージの必要クリア数
+      const [locRows] = await pool.query(
+        "SELECT required_clear_count FROM location WHERE id = ?",
+        [ch.location_id]
+      );
+
+      requiredClearCount = locRows[0].required_clear_count;
+
+      stageCleared = stageClearCount >= requiredClearCount;
+    }
 
     return res.json({
       ok: true,
       correct,
       title: ch.title,
+      judgeMode: ch.judge_mode,
       userCount: userRows.length,
       answerCount: answerRows.length,
-      // 開発中だけ返す（後で消してOK）
+      stageClearCount: correct ? stageClearCount : null,
+      requiredClearCount: correct ? requiredClearCount : null,
+      stageCleared: correct ? stageCleared : null,
       userRows
     });
+
+
   } catch (err) {
-    return res.status(400).json({ ok: false, message: "SQL実行エラー", error: String(err.message ?? err) });
+    return res.status(400).json({
+      ok: false,
+      message: "SQL実行エラー",
+      error: String(err.message ?? err),
+    });
+  }
+});
+
+// ロケーション一覧取得API（解放判定付き）
+app.get("/api/locations", async (req, res) => {
+  try {
+    const userId = 1;
+
+    // 全location取得
+    const [locs] = await pool.query(
+      "SELECT id, name, description, unlock_after_location_id, required_clear_count, display_order FROM location WHERE is_active = 1 ORDER BY display_order"
+    );
+
+    // 各locationのクリア数（そのlocationの問題を何問クリアしたか）
+    const [clearRows] = await pool.query(
+      `SELECT c.location_id, COUNT(*) AS cnt
+       FROM challenge_clears cc
+       JOIN challenges c ON c.id = cc.challenge_id
+       WHERE cc.user_id = ?
+       GROUP BY c.location_id`,
+      [userId]
+    );
+
+    const clearsByLocation = new Map(clearRows.map(r => [r.location_id, r.cnt]));
+
+    // 解放判定
+    const locations = locs.map(l => {
+      const clearedCount = clearsByLocation.get(l.id) ?? 0;
+
+      // unlock_after_location_id が null の場所は常に解放
+      // それ以外は「前の場所が required_clear_count を満たしているか」で解放
+      let isUnlocked = false;
+      if (l.unlock_after_location_id == null) {
+        isUnlocked = true;
+      } else {
+        // 前の場所のクリア数を取得して必要数と比較
+        const prevCleared = clearsByLocation.get(l.unlock_after_location_id) ?? 0;
+        // 前の場所の required_clear_count を取る必要があるので locs から探す
+        const prev = locs.find(x => x.id === l.unlock_after_location_id);
+        const prevRequired = prev?.required_clear_count ?? 1;
+        isUnlocked = prevCleared >= prevRequired;
+      }
+
+      return {
+        id: l.id,
+        name: l.name,
+        description: l.description,
+        requiredClearCount: l.required_clear_count,
+        clearedCount,
+        isUnlocked,
+        displayOrder: l.display_order
+      };
+    });
+
+    res.json({ ok: true, locations });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: "取得エラー", error: String(err.message ?? err) });
+  }
+});
+
+// 指定ロケーションの問題一覧取得API
+app.get("/api/locations/:locationId/challenges", async (req, res) => {
+  try {
+    const locationId = Number(req.params.locationId);
+
+    if (!Number.isInteger(locationId)) {
+      return res.status(400).json({ ok: false, message: "locationId が不正です" });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, level, title, description, judge_mode
+       FROM challenges
+       WHERE is_active = 1 AND location_id = ?
+       ORDER BY level, id`,
+      [locationId]
+    );
+
+    res.json({ ok: true, challenges: rows });
+
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "取得エラー",
+      error: String(err.message ?? err)
+    });
   }
 });
 
