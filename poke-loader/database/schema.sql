@@ -1,7 +1,7 @@
 -- MySQL dump 10.13  Distrib 8.4.8, for Win64 (x86_64)
 --
 -- Host: localhost    Database: poke_sql_game
--- -------------------------------------------------------
+-- ------------------------------------------------------
 -- Server version	8.4.8
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
