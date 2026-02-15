@@ -1,14 +1,11 @@
-﻿const express = require("express");
+const express = require("express");
 const app = express();
 const { pool } = require("./db");
 const { isSameByMode } = require("./judge");
+const path = require("path");
 
 app.use(express.json());
-
-// 動作確認用
-app.get("/", (req, res) => {
-  res.send("Pokemon SQL Game server is running!");
-});
+app.use(express.static(path.join(__dirname, "../client")));
 
 // ★SQLを受け取る入口（まずは受け取るだけ）
 app.post("/game/execute", (req, res) => {
@@ -202,29 +199,29 @@ app.get("/api/locations", async (req, res) => {
 app.get("/api/locations/:locationId/challenges", async (req, res) => {
   try {
     const locationId = Number(req.params.locationId);
-
     if (!Number.isInteger(locationId)) {
       return res.status(400).json({ ok: false, message: "locationId が不正です" });
     }
 
+    const userId = 1;
+
     const [rows] = await pool.query(
-      `SELECT id, level, title, description, judge_mode
-       FROM challenges
-       WHERE is_active = 1 AND location_id = ?
-       ORDER BY level, id`,
-      [locationId]
+      `SELECT c.id, c.level, c.title, c.description, c.judge_mode,
+              CASE WHEN cc.challenge_id IS NULL THEN 0 ELSE 1 END AS cleared
+       FROM challenges c
+       LEFT JOIN challenge_clears cc
+         ON cc.challenge_id = c.id AND cc.user_id = ?
+       WHERE c.is_active = 1 AND c.location_id = ?
+       ORDER BY cleared ASC, c.level, c.id`,
+      [userId, locationId]
     );
 
     res.json({ ok: true, challenges: rows });
-
   } catch (err) {
-    res.status(500).json({
-      ok: false,
-      message: "取得エラー",
-      error: String(err.message ?? err)
-    });
+    res.status(500).json({ ok: false, message: "取得エラー", error: String(err.message ?? err) });
   }
 });
+
 
 
 // MySQL 接続テスト

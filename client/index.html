@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ぽけもん えるえすきゅーえる げーむ</title>
+  <style>
+    /* ===== ぽけもんっぽい かくかく UI ===== */
+    :root {
+      --black: #111;
+      --white: #f7f7f7;
+      --panel: #e9e9e9;
+      --blue: #1f3f87;
+      /* したの せりふ ぼっくす */
+      --blue2: #16336f;
+      --yellow: #f3c44a;
+      /* ふち */
+      --text: #111;
+      --muted: #444;
+      --bg: #bfe3ff;
+      --shadow: 0 10px 26px rgba(0, 0, 0, 0.25);
+      --px: 4px;
+      /* ふちの あつみ */
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, #cfefff, #b7e0ff);
+      font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      color: var(--text);
+      padding: 18px;
+    }
+
+    /* げーむ がめん（ぶらうざ いっぱいに しない） */
+    .game {
+      width: min(980px, 96vw);
+      height: min(640px, 84vh);
+      display: grid;
+      grid-template-rows: 1fr 210px;
+      gap: 14px;
+    }
+
+    /* たたかい ふぃーるど（うしろのがめん） */
+    .stage {
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.15)),
+        url("https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1400&q=60") center/cover no-repeat;
+    }
+
+    /* ぽけもんUIの “ふち＋うちがわ” をつくる（かくかく） */
+    .frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      padding: 10px;
+      background: var(--panel);
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) var(--white);
+    }
+
+    .stage-inner {
+      position: relative;
+      height: 100%;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 12px;
+    }
+
+    /* ===== ひだり：でーただいずかん ===== */
+    .dex-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--white);
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+    }
+
+    .titlebar small {
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
+
+    .dex-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pxbtn {
+      border: var(--px) solid var(--black);
+      background: var(--white);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8;
+      padding: 6px 8px;
+      font-weight: 900;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+    }
+
+    .pxbtn:active {
+      transform: translateY(1px);
+    }
+
+    .dex-scroll {
+      flex: 1;
+      overflow: auto;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.85);
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8;
+
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      letter-spacing: 0.03em;
+      line-height: 1.45;
+    }
+
+    /* アコーディオン（てーぶる） */
+    .dex-item {
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8;
+      background: var(--white);
+      margin-bottom: 10px;
+    }
+
+    .dex-btn {
+      width: 100%;
+      text-align: left;
+      border: 0;
+      background: transparent;
+      padding: 10px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+    }
+
+    .dex-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .tri {
+      width: 0;
+      height: 0;
+      border-left: 10px solid var(--black);
+      border-top: 8px solid transparent;
+      border-bottom: 8px solid transparent;
+      transition: transform 120ms ease;
+    }
+
+    .meta {
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .dex-content {
+      padding: 0 10px 10px;
+    }
+
+    .cols {
+      display: grid;
+      gap: 8px;
+      padding-left: 18px;
+    }
+
+    .col {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 8px;
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8;
+      background: #fdfdfd;
+      cursor: pointer;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+    }
+
+    .col small {
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
+
+    .chip {
+      font-size: 12px;
+      font-weight: 900;
+      padding: 2px 8px;
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8;
+      background: #fff;
+      flex: 0 0 auto;
+    }
+
+    .dex-item[data-open="false"] .dex-content {
+      display: none;
+    }
+
+    .dex-item[data-open="true"] .tri {
+      transform: rotate(90deg);
+    }
+
+    /* ===== みぎ：もんだい＋HPふう ===== */
+    .center {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+    }
+
+    .statusbox {
+      background: var(--white);
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8;
+      padding: 10px;
+    }
+
+    .status-top {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+    }
+
+    .hp {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 900;
+    }
+
+    .hpbar {
+      width: 160px;
+      height: 14px;
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .hpfill {
+      height: 100%;
+      width: 70%;
+      background: #3bd45a;
+    }
+
+    .question {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.03em;
+      line-height: 1.6;
+      font-weight: 800;
+    }
+
+    .center-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      height: 100%;
+    }
+
+    .bigbtn {
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8;
+      background: var(--white);
+      padding: 12px 18px;
+      font-weight: 900;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+    }
+
+    .bigbtn:active {
+      transform: translateY(1px);
+    }
+
+    /* ===== した：せりふ ぼっくす（ぽけもん風） ===== */
+    .dialog {
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) var(--yellow);
+      background: linear-gradient(180deg, var(--blue), var(--blue2));
+      padding: 12px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 10px;
+    }
+
+    .dialog-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(255, 255, 255, 0.95);
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      font-size: 13px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100%;
+      resize: none;
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) rgba(255, 255, 255, 0.18);
+      background: rgba(0, 0, 0, 0.25);
+      color: rgba(255, 255, 255, 0.95);
+      outline: none;
+      padding: 10px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      line-height: 1.55;
+      font-family: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+    }
+
+    .dialog-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      font-size: 12px;
+    }
+
+    .dialog-foot .right {
+      display: flex;
+      gap: 10px;
+    }
+
+    .dbtn {
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.9);
+      padding: 8px 10px;
+      font-weight: 900;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+    }
+
+    .dbtn.primary {
+      background: var(--yellow);
+    }
+
+    .dbtn:active {
+      transform: translateY(1px);
+    }
+
+    /* ★ Gridの中で overflow を効かせる定番：min-height:0 を入れる */
+    .stage-inner {
+      min-height: 0;
+    }
+
+    .dex-panel {
+      min-height: 0;
+    }
+
+    .dex-scroll {
+      min-height: 0;
+    }
+
+    /* ここが特に大事。中身が増えてもここでスクロールさせる */
+
+    .center {
+      min-height: 0;
+    }
+
+    /* 右側も念のため */
+    /* ===== 捕獲オーバーレイ ===== */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.35);
+      z-index: 50;
+    }
+
+    .overlay[data-show="true"] {
+      display: grid;
+    }
+
+    .catch-card {
+      width: min(420px, 86%);
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8, var(--shadow);
+      background: var(--white);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      justify-items: center;
+      text-align: center;
+    }
+
+    .catch-title {
+      font-weight: 900;
+      letter-spacing: 0.08em;
+    }
+
+    .catch-name {
+      font-weight: 900;
+      font-size: 18px;
+      letter-spacing: 0.06em;
+    }
+
+    .catch-img {
+      width: 160px;
+      height: 160px;
+      image-rendering: pixelated;
+      object-fit: contain;
+      border: var(--px) solid var(--black);
+      box-shadow: inset 0 0 0 var(--px) #d8d8d8;
+      background: #fdfdfd;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="game">
+    <!-- うえ：ふぃーるど -->
+    <div class="stage">
+      <div class="frame">
+        <div class="stage-inner">
+          <!-- ひだり：でーただいずかん -->
+          <section class="dex-panel" aria-label="でーただいずかん">
+            <div class="titlebar">
+              <div>でーただいずかん <small>（てーぶる／れつ）</small></div>
+              <div class="dex-actions">
+                <button class="pxbtn" id="expandAllBtn">ぜんぶ ひらく</button>
+                <button class="pxbtn" id="collapseAllBtn">ぜんぶ とじる</button>
+              </div>
+            </div>
+
+            <div class="dex-scroll">
+              <div class="hint">
+                てーぶるめいを おすと ひらくよ。<br />
+                れつめいを おすと したのSQLに はりつけるよ。
+              </div>
+              <div id="dex"></div>
+            </div>
+          </section>
+
+          <!-- みぎ：もんだい＋すてーたす -->
+          <section class="center" aria-label="もんだい">
+            <div class="statusbox">
+              <div class="status-top">
+                <div>もんだい Lv.4</div>
+                <div class="hp">
+                  <span>HP</span>
+                  <div class="hpbar">
+                    <div class="hpfill" id="hpFill"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="question" id="questionText">
+                れい：１ばんどうろに であえる ぽけもんの なまえを しゅとく せよ。<br />
+                （ひだりの ずかんで つかえる てーぶると れつを かくにん）
+              </div>
+            </div>
+
+            <div class="center-actions">
+              <button class="bigbtn" id="nextBtn">つぎへ</button>
+              <button class="bigbtn" id="hintBtn">ひんと</button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- つかまえる演出（オーバーレイ） -->
+      <div id="catchOverlay" class="overlay" aria-hidden="true">
+        <div class="catch-card">
+          <div class="catch-title" id="catchTitle">つかまえた！</div>
+          <div class="catch-name" id="catchName">ピカチュウ</div>
+          <img id="catchImg" class="catch-img" alt="pokemon" />
+          <button id="catchOkBtn" class="bigbtn">つぎへ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- した：せりふ＋SQL -->
+    <section class="dialog" aria-label="せりふ と SQL">
+      <div class="dialog-head">
+        <div>あ！ やせいの もんだいが あらわれた！</div>
+        <div id="statusText">じゅんびOK</div>
+      </div>
+
+      <textarea id="sqlInput" placeholder="れい：select p.name_ja from ..."></textarea>
+
+      <div class="dialog-foot">
+        <div>※ SELECTのみ（あとで きんしわーど ちぇっく いれる）</div>
+        <div class="right">
+          <button class="dbtn" id="clearBtn">くりあ</button>
+          <button class="dbtn primary" id="submitBtn">そうしん</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ---- ずかん（すきーま）でーた：あとでAPIから もらう形に かえられる ----
+    const schema = [
+      {
+        table: "pokemon",
+        tableKana: "ぽけもん",
+        columns: [
+          { name: "id", type: "INT", note: "ぽけもんID" },
+          { name: "name_ja", type: "TEXT", note: "なまえ" },
+          { name: "type1", type: "TEXT", note: "たいぷ１" },
+          { name: "type2", type: "TEXT", note: "たいぷ２" }
+        ],
+        open: true
+      },
+      {
+        table: "encounter",
+        tableKana: "であい",
+        columns: [
+          { name: "location_id", type: "INT", note: "ばしょID" },
+          { name: "pokemon_id", type: "INT", note: "ぽけもんID" }
+        ],
+        open: false
+      },
+      {
+        table: "location",
+        tableKana: "ばしょ",
+        columns: [
+          { name: "id", type: "INT", note: "ばしょID" },
+          { name: "name", type: "TEXT", note: "ばしょめい" }
+        ],
+        open: false
+      }
+    ];
+
+    // ---------- DOM ----------
+    const dexEl = document.getElementById("dex");
+    const sqlInput = document.getElementById("sqlInput");
+    const statusText = document.getElementById("statusText");
+    const questionText = document.getElementById("questionText");
+    const hpFill = document.getElementById("hpFill");
+
+    // ---------- ゲーム状態 ----------
+    const state = {
+      locationId: null,
+      locations: [],
+      challenges: [],
+      currentChallenge: null,
+      lastHint: null,
+      hp: 70, // UIの見た目用(%)：最初70%
+    };
+
+    // ---------- つかまえる演出（オーバーレイ） ----------
+    const overlay = document.getElementById("catchOverlay");
+    const catchTitle = document.getElementById("catchTitle");
+    const catchName = document.getElementById("catchName");
+    const catchImg = document.getElementById("catchImg");
+    const catchOkBtn = document.getElementById("catchOkBtn");
+
+    function openCatchOverlay({ nameJa, imgUrl }) {
+      catchTitle.textContent = "つかまえた！";
+      catchName.textContent = nameJa ?? "？？？";
+      catchImg.src = imgUrl ?? "";
+      overlay.dataset.show = "true";
+      overlay.setAttribute("aria-hidden", "false");
+    }
+
+    function closeCatchOverlay() {
+      overlay.dataset.show = "false";
+      overlay.setAttribute("aria-hidden", "true");
+    }
+    catchOkBtn.addEventListener("click", async () => {
+      closeCatchOverlay();
+      // 次の問題へ進める（好みで）
+      await loadChallengesForLocation();
+    });
+
+
+    // ---------- API helper ----------
+    async function apiGet(path) {
+      const res = await fetch(path, { headers: { "Accept": "application/json" } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        const msg = data?.message ?? `GET失敗: ${res.status}`;
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    async function apiPost(path, body) {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8", "Accept": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        const msg = data?.message ?? `POST失敗: ${res.status}`;
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    // ---------- ずかん UI ----------
+    function renderDex() {
+      dexEl.innerHTML = "";
+      for (const item of schema) {
+        const wrap = document.createElement("div");
+        wrap.className = "dex-item";
+        wrap.dataset.open = String(!!item.open);
+
+        const btn = document.createElement("button");
+        btn.className = "dex-btn";
+        btn.type = "button";
+        btn.setAttribute("aria-expanded", String(!!item.open));
+
+        const left = document.createElement("div");
+        left.className = "dex-left";
+
+        const tri = document.createElement("span");
+        tri.className = "tri";
+
+        const name = document.createElement("div");
+        name.style.minWidth = "0";
+        name.style.fontWeight = "900";
+        name.style.letterSpacing = "0.06em";
+        name.textContent = `${item.tableKana}（${item.table}）`;
+
+        left.appendChild(tri);
+        left.appendChild(name);
+
+        const meta = document.createElement("span");
+        meta.className = "meta";
+        meta.textContent = `${item.columns.length} こ`;
+
+        btn.appendChild(left);
+        btn.appendChild(meta);
+
+        btn.addEventListener("click", () => {
+          item.open = !item.open;
+          wrap.dataset.open = String(item.open);
+          btn.setAttribute("aria-expanded", String(item.open));
+        });
+
+        const content = document.createElement("div");
+        content.className = "dex-content";
+
+        const cols = document.createElement("div");
+        cols.className = "cols";
+
+        for (const col of item.columns) {
+          const row = document.createElement("div");
+          row.className = "col";
+          row.title = "おすと SQLに はりつけ（table.column）";
+
+          const leftText = document.createElement("div");
+          leftText.style.display = "grid";
+          leftText.style.gap = "2px";
+
+          const main = document.createElement("div");
+          main.textContent = col.name;
+
+          const sub = document.createElement("small");
+          sub.textContent = col.note ?? "";
+
+          leftText.appendChild(main);
+          if (col.note) leftText.appendChild(sub);
+
+          const chip = document.createElement("span");
+          chip.className = "chip";
+          chip.textContent = col.type;
+
+          row.appendChild(leftText);
+          row.appendChild(chip);
+
+          row.addEventListener("click", () => {
+            insertAtCursor(sqlInput, `${item.table}.${col.name}`);
+            statusText.textContent = `はりつけ：${item.table}.${col.name}`;
+          });
+
+          cols.appendChild(row);
+        }
+
+        content.appendChild(cols);
+        wrap.appendChild(btn);
+        wrap.appendChild(content);
+        dexEl.appendChild(wrap);
+      }
+    }
+
+    function insertAtCursor(textarea, text) {
+      textarea.focus();
+      const start = textarea.selectionStart ?? textarea.value.length;
+      const end = textarea.selectionEnd ?? textarea.value.length;
+      const before = textarea.value.slice(0, start);
+      const after = textarea.value.slice(end);
+
+      const needSpace = before.length > 0 && !/[a-zA-Z0-9_.]$/.test(before);
+      const insert = (needSpace ? " " : "") + text;
+
+      textarea.value = before + insert + after;
+      const nextPos = (before + insert).length;
+      textarea.setSelectionRange(nextPos, nextPos);
+    }
+
+    // ---------- ゲーム進行 ----------
+    function setHp(percent) {
+      state.hp = Math.max(0, Math.min(100, percent));
+      hpFill.style.width = state.hp + "%";
+    }
+
+    function showChallenge(ch) {
+      state.currentChallenge = ch;
+      // description が長いときもあるから UIに合わせて表示
+      questionText.innerHTML =
+        `${escapeHtml(ch.title)}<br />` +
+        `<span style="opacity:.95">${escapeHtml(ch.description ?? "")}</span>`;
+
+      statusText.textContent = `もんだい せんたく：#${ch.id} (Lv.${ch.level})`;
+      state.lastHint = null;
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function pickNextChallenge() {
+      const notCleared = state.challenges.filter(c => c.cleared === 0);
+
+      if (notCleared.length > 0) {
+        return notCleared[0];
+      }
+
+      return null; // 全部クリア
+    }
+
+    async function loadLocationsAndSelectFirstUnlocked() {
+      statusText.textContent = "ろけーしょん しゅとくちゅう…";
+      const data = await apiGet("/api/locations");
+      state.locations = data.locations ?? [];
+
+      const first = state.locations.find(l => l.isUnlocked) ?? state.locations[0];
+      if (!first) throw new Error("ろけーしょんが ありません");
+
+      state.locationId = first.id;
+      statusText.textContent = `ばしょ：${first.name}（id=${first.id}）`;
+    }
+
+    async function loadChallengesForLocation() {
+      if (!state.locationId) throw new Error("locationId が みつかりません");
+      statusText.textContent = "もんだい しゅとくちゅう…";
+
+      const data = await apiGet(`/api/locations/${state.locationId}/challenges`);
+      state.challenges = data.challenges ?? [];
+
+      if (state.challenges.length === 0) {
+        questionText.innerHTML = "この ばしょには もんだいが ありません";
+        statusText.textContent = "もんだい なし";
+        return;
+      }
+
+      const ch = pickNextChallenge();
+      showChallenge(ch);
+    }
+
+    async function submitSql() {
+      const sql = sqlInput.value.trim();
+      if (!sql) { statusText.textContent = "SQLが から"; return; }
+      if (!state.currentChallenge) { statusText.textContent = "もんだいが えらばれてない"; return; }
+
+      statusText.textContent = "そうしんちゅう…";
+      const result = await apiPost("/api/submit", {
+        challengeId: state.currentChallenge.id,
+        sql
+      });
+
+      if (result.correct) {
+        statusText.textContent =
+          `せいかい！ (${result.userCount}/${result.answerCount}) ` +
+          `クリア:${result.stageClearCount}/${result.requiredClearCount}`;
+
+        const rows = result.userRows ?? [];
+        const first =
+          rows.length > 0
+            ? rows[Math.floor(Math.random() * rows.length)]
+            : null;
+
+        const nameJa =
+          first?.name_ja ??
+          first?.name ??
+          first?.pokemon_name ??
+          "ぽけもん";
+
+        const pokeId =
+          first?.id ??
+          first?.pokemon_id ??
+          null;
+
+        const imgUrl = pokeId
+          ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokeId}.png`
+          : "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png";
+
+        openCatchOverlay({ nameJa, imgUrl });
+
+        setHp(state.hp - 10);
+      } else {
+        statusText.textContent = `ざんねん… (${result.userCount}/${result.answerCount})`;
+      }
+
+      console.log("submit result:", result);
+    }
+
+    // ---------- ボタン ----------
+    document.getElementById("expandAllBtn").addEventListener("click", () => {
+      for (const t of schema) t.open = true;
+      renderDex();
+      statusText.textContent = "ぜんぶ ひらいた";
+    });
+
+    document.getElementById("collapseAllBtn").addEventListener("click", () => {
+      for (const t of schema) t.open = false;
+      renderDex();
+      statusText.textContent = "ぜんぶ とじた";
+    });
+
+    document.getElementById("nextBtn").addEventListener("click", async () => {
+      try {
+        // まだ問題一覧が無いなら取りに行く
+        if (state.challenges.length === 0) {
+          await loadChallengesForLocation();
+          return;
+        }
+        const ch = pickNextChallenge();
+        showChallenge(ch);
+      } catch (e) {
+        statusText.textContent = "えらー：" + (e.message ?? e);
+      }
+    });
+
+    document.getElementById("hintBtn").addEventListener("click", () => {
+      // 今はサーバから hint を返してないので暫定ヒント
+      // 後で challenges テーブルに hint カラムを追加してAPIで返すのがおすすめ
+      statusText.textContent = "ひんと：JOINは encounter.pokemon_id と pokemon.id";
+    });
+
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      sqlInput.value = "";
+      statusText.textContent = "くりあ した";
+    });
+
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      try {
+        await submitSql();
+      } catch (e) {
+        statusText.textContent = "えらー：" + (e.message ?? e);
+      }
+    });
+
+    // ---------- 起動 ----------
+    (async function boot() {
+      try {
+        renderDex();
+        setHp(state.hp);
+        await loadLocationsAndSelectFirstUnlocked();
+        await loadChallengesForLocation();
+        statusText.textContent = "じゅんびOK（つぎへ か そうしん）";
+      } catch (e) {
+        statusText.textContent = "きどう えらー：" + (e.message ?? e);
+        console.error(e);
+      }
+    })();
+  </script>
+
+</body>
+
+</html>

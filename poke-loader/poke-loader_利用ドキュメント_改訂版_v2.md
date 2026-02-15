@@ -26,6 +26,9 @@
 ### 1-1. Node.js（LTS推奨）
 - Node.js を入れると `node` と `npm` が使えるようになります。
 
+- 公式ダウンロード：Node.js（LTS） https://nodejs.org/en/download
+  - 日本語ページ（Currentも見れる）：https://nodejs.org/ja/download/current
+
 #### ✅ 確認コマンド（PowerShell）
 ```powershell
 node -v
@@ -42,7 +45,28 @@ mysql --version
 mysqldump --version
 ```
 
-> もし `mysqldump` が見つからない場合は、MySQL の `bin`（例: `C:\Program Files\MySQL\MySQL Server 8.4\bin`）に PATH を通します。
+> もし `mysqldump` / `mysql` が見つからない場合は、MySQL の `bin`（例: `C:\Program Files\MySQL\MySQL Server 8.4\bin`）に **PATH を通します**。
+
+#### ✅ MySQL の PATH を追加する（Windows 10/11）
+1) **MySQL の bin を探す**
+- 例：`C:\Program Files\MySQL\MySQL Server 8.4\bin`
+- `mysql.exe` が入っているフォルダです（`mysqldump.exe` も同じ場所）
+
+2) **環境変数 Path に追加**
+- Windows 検索で「**環境変数**」→「**システム環境変数の編集**」
+- 「**環境変数(N)...**」を開く
+- （おすすめ）**ユーザー環境変数** の `Path` を選択 →「**編集**」
+- 「**新規**」→ 1) の `...\bin` を追加 → OK
+
+3) **PowerShell を開き直して確認**
+```powershell
+where mysql
+where mysqldump
+mysql --version
+mysqldump --version
+```
+
+> 追加後も `where mysql` が空なら、PowerShell を**いったん全部閉じて**開き直してください（Path の反映のため）。
 
 ---
 
@@ -226,6 +250,34 @@ where mysqldump
 ### 7-3. 外部キーエラーが出る
 - schema.sql → data.sql の順番を守る
 - 既存の中途半端なテーブルがある場合はDBを作り直す（開発用のみ）
+
+### 7-4. `npm -v` が「PowerShellのセキュリティ設定」で弾かれる（npm.ps1）
+Node.js を入れているのに、PowerShell で `npm -v` を打つと次のようなエラーが出ることがあります。
+
+- 例：`npm.ps1 cannot be loaded because running scripts is disabled on this system`
+
+これは **PowerShell の実行ポリシー（ExecutionPolicy）** が原因で、`npm.ps1` の実行がブロックされています。
+
+#### 対処（おすすめ：CurrentUser を RemoteSigned にする）
+PowerShell を開いて次を実行：
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+確認：
+```powershell
+npm -v
+node -v
+```
+
+#### 一時的にだけ許可したい場合（そのPowerShellを閉じたら戻る）
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+npm -v
+```
+
+> ※セキュリティのため、意味が分からないまま `Unrestricted` にするのは避けるのがおすすめです。
 
 ---
 
